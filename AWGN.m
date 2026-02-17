@@ -1,16 +1,19 @@
 %~= - !=
 % mod - %
-% fix(A,b) - /
+% fix(A/b) - /
 
-
+% "0000000100100011010001010110011110001001101010111100110111101111"
 % 00: -3; 01: -1; 11: 1; 10: 3 для |Re|. 
 % 00: 3, 01: 1, 11: -1, 10: -3 для |Im|
 % Также первые два бита это Re, а вторые два бита это Im 
 % Ex: 0000 (-3,3i); 1000 (3,3i); 1111(1,-1)
 
-binary_message = gen(200000)
-z = QAM16(binary_message)
+binary_message = gen(20000000)
+z = (QAM16_modulated(binary_message));
 
+z_gauss = awgn_add(z);
+
+r = QAM16_demodulated(z_gauss)
 
 figure;
 plot(real(z), imag(z), 'o', 'MarkerSize', 8, 'MarkerFaceColor', 'blue');
@@ -23,11 +26,46 @@ xlim([-4 4]);
 ylim([-4 4]);
 
 
-function res = QAM16(seq) 
-    constellation = [-3-3j, -3-1j, -3+3j, -3+1j; ...
-                      -1-3j, -1-1j, -1+3j, -1+1j; ...
-                       3-3j,  3-1j,  3+3j,  3+1j; ...
-                       1-3j,  1-1j,  1+3j,  1+1j];
+
+function res = QAM16_demodulated(signal)
+    constellation = [-3+3j, -1+3j, 1+3j,3+3j; ...
+                      -3+1j, -1+1j, 1+1j, 3+1j; ...
+                      -3-1j, -1-1j, 1-1j, 3-1j; ...
+                       -3-3j, -1-3j, 1-3j,3-3j];
+    const_vec = constellation(:);
+    res = [];
+    for i=1:length(signal)
+        min_dist = inf;
+        s = 0;
+        for j = 1:length(const_vec)
+            diff = abs(signal(i) - (constellation(j)));
+            if diff < min_dist
+                min_dist = diff;
+                s = j-1;
+            end
+        end
+
+        bit_12 = string(dec2bin(mod(s,4),2));
+        bit_34 = string(dec2bin((fix(s/4)), 2));
+        
+        res = [res,bit_12+bit_34];
+    end
+    res = join(res,"");
+end
+
+
+function signal = awgn_add(signal)
+    for j = 1:length(signal);
+        signal(j) = signal(j) + 0.004*(randn()+i*randn());
+    end
+end
+
+
+function res = QAM16_modulated(seq) 
+    constellation = [-3+3j, -1+3j, 1+3j,3+3j; ...
+                      -3+1j, -1+1j, 1+1j, 3+1j; ...
+                      -3-1j, -1-1j, 1-1j, 3-1j; ...
+                       -3-3j, -1-3j, 1-3j,3-3j];
     
     seq_size = strlength(seq) / 4;
     res = [];
@@ -64,8 +102,8 @@ end
 
 
 function res = gen(len)
-    random_num = randi([len,len*len + 1])
-    res = to_binary(random_num)
+    random_num = randi([len,len*len + 1]);
+    res = to_binary(random_num);
 end
 
 
